@@ -11,9 +11,14 @@ Requirements - project requirements and example projects
 WorkingCode - individual code books that were worked on separately
 Miscellaneous - miscellaneous files and drafts left over from our learning curve with the assignment
 
+## Contributors
+Please contact any of the members below: 
+ - Jaclyn Coate: jcoate@smu.edu
+ - Josh Eysenbach: jeysenbach@smu.edu
+ - Michael :
 
-Contributors:
-
-Jaclyn Coate: jcoate@smu.edu
-Josh Eysenbach: jeysenbach@smu.edu
-Michael :
+ [Final Analysis]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/FinalAnalysis>
+ [CodeBooks]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/Codebooks>
+ [Requirements]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/Requirements>
+ [WorkingCode]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/WorkingCode>         
+ [Miscellaneous]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/Misc>   
