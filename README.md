@@ -15,7 +15,7 @@ The purpose of this repository is to share our collaborative work in order to co
 Please contact any of the members below: 
  - Jaclyn Coate: jcoate@smu.edu
  - Josh Eysenbach: jeysenbach@smu.edu
- - Branum :
+ - Branum Stephan:
 
  [Final Analysis]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/FinalAnalysis>
  [CodeBooks]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/Codebooks>
