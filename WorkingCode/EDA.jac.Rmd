@@ -1,0 +1,20 @@
+---
+title: 'Project 2: EDA'
+author: "Jaclyn A Coate"
+date: "3/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r data prep}
+bankraw <- read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/bank-additional-full.csv", header = TRUE, sep = ";", strip.white = TRUE)
+str(bankraw)
+head(bankraw)
+```
+
+## EDA to determine narrow down variables to use for the Logistic Regression model
