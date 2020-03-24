@@ -11,10 +11,92 @@ knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 ```
 
+```{r environment prep}
+library(tidyverse)
+library(mice)
+library(skimr)
+library(corrplot)
+```
+
 ```{r data prep}
 bankraw <- read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/bank-additional-full.csv", header = TRUE, sep = ";", strip.white = TRUE)
 str(bankraw)
 head(bankraw)
 ```
 
+# Question of Interest:
+- The data is related with direct marketing campaigns (phone calls) of a Portuguese banking institution. The classification goal is to predict if the client will subscribe a term deposit (variable y).
+
 ## EDA to determine narrow down variables to use for the Logistic Regression model
+
+#### Removing logically irrelevant variables
+- Upon reviewing the available metrics, there are certain variabels that would not make logical sense as a contribution to creating a logisitc regression model
+
+```{r drop irrelevant variables}
+str(bankraw)
+#Dropping logical irrelevant variables: "contact", "campaign", "pdays", "previous"
+bankraw2 <- select(bankraw, -c("pdays", "previous", "contact", "campaign"))
+head(bankraw2)
+view(bankraw2)
+```
+
+#### NA Evaluation and Drop
+
+```{r NA eval}
+#Checking for NAs
+md.pattern(bankraw2)
+#Results show no NAs
+```
+
+#### Zero variance variable check - all show variance so remain in model
+
+```{r zero variable check}
+skim(bankraw2)
+```
+
+#### Continuous Variable Multicollinearity Check
+- Multicollinearity will weaken the model
+- At first glance there does seem to be some correlation between a few of the continuous variables
+- When highglighting the yes versus no result for signing up, we cannot see a clear separation of anykind. This will lead us away from utilizing the principal componenet analysis technique in order to comple a LDA and susequent model
+
+```{r data reduction}
+view(bankraw2)
+#Reducing to only continuous variables
+bankreduced <- select(bankraw2, c("age", "duration", "emp.var.rate", "cons.price.idx", "cons.conf.idx", "euribor3m", "nr.employed", "y"))
+pairs(bankreduced[,1:7],col=bankreduced$y)
+```
+
+- To additionally check we will run a correlation matrix
+  - Using the correlation matrix we can much more clearly see high correlation
+    - cons.price.idx : nr.employed
+    - cons.price.idx : emp.var.rate
+    - cons.price.idx : euribor3m
+    - nr.employed : emp.var.rate
+    - nr.employed : euibor3m
+    - emp.var.rate : euribor3m
+
+```{r correlation matrix}
+#Plot numeric variables v numeric variables
+bankreduced %>% keep(is.numeric) %>% cor %>% corrplot("upper", addCoef.col = "white", number.digits = 2, number.cex = 0.5, method="square", order="hclust", tl.srt=45, tl.cex = 0.8)
+```
+
+```{r attrition: removing highly correlated variable}
+#Removing reviews_per_month due to high correlation of is and number_of_reviews
+bank3 <- select(bankreduced, -c("cons.price.idx", "nr.employed", "emp.var.rate"))
+```
+
+- AFter reviewing the need to remove the below variables is clear
+  - "cons.price.idx", "nr.employed", "emp.var.rate"
+- See correlation matrix below after correlated continuous variables have been removed
+
+```{r correlation matrix 2}
+#Plot numeric continuous variables to double check all correlated values have been removed
+bank3 %>% keep(is.numeric) %>% cor %>% corrplot("upper", addCoef.col = "white", number.digits = 2, number.cex = 0.5, method="square", order="hclust", tl.srt=45, tl.cex = 0.8)
+```
+
+#### Summary Check on Variables
+
+```{r summary of variables}
+summary(bankraw2)
+```
+
