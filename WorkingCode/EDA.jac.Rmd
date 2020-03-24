@@ -140,41 +140,49 @@ head(bank3)
 numCatCat(bank3, explanatory = "job", response = "Subscription")
 ```
 
-```{r }
+```{r Martial v Subscription}
 numCatCat(bank3, explanatory = "marital", response = "Subscription")
 ```
 
-```{r }
+```{r Education v Subscription}
 numCatCat(bank3, explanatory = "education", response = "Subscription")
 ```
 
-```{r }
+```{r Default v Subscription}
 numCatCat(bank3, explanatory = "default", response = "Subscription")
 ```
 
-```{r }
+```{r House v Subscription}
 numCatCat(bank3, explanatory = "housing", response = "Subscription")
 ```
 
-```{r }
+```{r Loadn v Subscription}
 numCatCat(bank3, explanatory = "loan", response = "Subscription")
 ```
 
-```{r }
+```{r Month v Subscription}
 numCatCat(bank3, explanatory = "month", response = "Subscription")
 ```
 
-```{r }
+```{r Day of Week v Subscription}
 numCatCat(bank3, explanatory = "day_of_week", response = "Subscription")
 ```
 
-```{r }
+```{r Poutcome v Subscription}
 numCatCat(bank3, explanatory = "poutcome", response = "Subscription")
+```
+
+- Upon reviewing all of the Categorical variables we can clearly remove the below variables
+  - marital, housing, loan, day_of_week
+- While the below variables seem to show strong correlation with the response variable
+  - job, eduction, default, month, poutcome
+
+```{r removal of unrelated categorical variables}
+bank4 <- select(bank3, -c("marital", "housing", "loan", "day_of_week"))
 ```
 
 #### Summary Check on Variables
 
 ```{r summary of variables}
-#summary(LAST_VARIABLES_TO_MODEL)
+summary(bank4)
 ```
-
