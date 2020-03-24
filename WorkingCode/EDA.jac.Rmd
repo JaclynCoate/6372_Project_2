@@ -13,6 +13,7 @@ knitr::opts_chunk$set(message = FALSE)
 
 ```{r environment prep}
 library(tidyverse)
+library(data.table)
 library(mice)
 library(skimr)
 library(corrplot)
@@ -33,7 +34,7 @@ head(bankraw)
 #### Properly naming response variable
 
 ```{r}
-colnames(y) <- "Subscription"
+setnames(bankraw, "y", "Subscription")
 ```
 
 #### Removing logically irrelevant variables
@@ -66,10 +67,10 @@ skim(bankraw2)
 - At first glance there does seem to be some correlation between a few of the continuous variables
 - When highglighting the yes versus no result for signing up, we cannot see a clear separation of anykind. This will lead us away from utilizing the principal componenet analysis technique for variable selection
 
-```{r data reduction}
+```{r pairs graph}
 view(bankraw2)
-#Reducing to only continuous variables
-bankraw2 %>% keep(is.numeric) %>% pairs(,col=bankraw2$y)
+#Reducing to only continuous variables and graphing by continuous variables, then colored by response in order to determine if there is separation of results and the ability to utilzie PCA
+bankraw2 %>% keep(is.numeric) %>% pairs(,col=bankraw2$Subscription)
 ```
 
 - To additionally check we will run a correlation matrix
@@ -106,9 +107,9 @@ bank3 %>% keep(is.numeric) %>% cor %>% corrplot("upper", addCoef.col = "white", 
 
 #### Categorical Variable Review
 
-```{r}
+```{r Categorical Variable Review Grid}
 # 1. Name target variable
-targetCatCat <- "y"
+targetCatCat <- "Subscription"
 
 # 2. Name explanatory variable
 explanatory <- bank3 %>% keep(is.factor) %>% colnames
@@ -119,7 +120,7 @@ numCatCat <- function(df, explanatory, response) {
 }
 
   # 3a. Example of working function above
-  # numCatCat1(bank3, explanatory = "education", response = "y")
+  # numCatCat(bank3, explanatory = "education", response = "Subscription")
 
 
 # 4. Create plot list for plot_grid function to reference
@@ -131,12 +132,49 @@ plot_grid(plotlist = plotlistCatCat)
 
 - Singular break downs of the above function
 
+```{r review data}
+head(bank3)
+```
 
+```{r Job v Subscription}
+numCatCat(bank3, explanatory = "job", response = "Subscription")
+```
 
+```{r }
+numCatCat(bank3, explanatory = "marital", response = "Subscription")
+```
+
+```{r }
+numCatCat(bank3, explanatory = "education", response = "Subscription")
+```
+
+```{r }
+numCatCat(bank3, explanatory = "default", response = "Subscription")
+```
+
+```{r }
+numCatCat(bank3, explanatory = "housing", response = "Subscription")
+```
+
+```{r }
+numCatCat(bank3, explanatory = "loan", response = "Subscription")
+```
+
+```{r }
+numCatCat(bank3, explanatory = "month", response = "Subscription")
+```
+
+```{r }
+numCatCat(bank3, explanatory = "day_of_week", response = "Subscription")
+```
+
+```{r }
+numCatCat(bank3, explanatory = "poutcome", response = "Subscription")
+```
 
 #### Summary Check on Variables
 
 ```{r summary of variables}
-summary(bankraw2)
+#summary(LAST_VARIABLES_TO_MODEL)
 ```
 
