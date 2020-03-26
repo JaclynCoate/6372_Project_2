@@ -1,0 +1,70 @@
+*Import Data;
+proc import out=work.bankraw
+datafile="\\smu.edu\Files\users$\jeysenbach\Apps.SMU\Desktop\SAS\bank-additional-full.csv"
+DBMS= csv replace;
+getnames=yes;
+datarow=2;
+
+*Rename "y" to "Subscription";
+data bankraw;
+set bankraw;
+rename y = Subscription;
+run;
+
+*Separate Yes and No observations into datasets for partitioning into a training and test set;
+*The goal is to get a training set that has approx equal yes and no responses for logistic regression analysis;
+data bankraw_no;
+set bankraw;
+if Subscription='no';
+row = _n_;
+run;
+
+data bankraw_yes;
+set bankraw;
+if Subscription='ye';
+row = _n_;
+run;
+
+*There are 36548 No and 4640 Yes.;
+*Below will randomly select about half of the yes observations and an appox equal number of no observations;
+
+data banktrain_no banktest_no;
+set bankraw_no;
+by row;
+if first.row then do;
+	if ranuni(1234) < .065 then destination = 'banktrain_no';
+	else destination = 'banktest_no';
+	retain destination;
+end;
+if destination = 'banktrain_no' then output banktrain_no;
+else output banktest_no;
+drop destination;
+run;
+
+data banktrain_yes banktest_yes;
+set bankraw_yes;
+by row;
+if first.row then do;
+	if ranuni(1234) < .5 then destination = 'banktrain_yes';
+	else destination = 'banktest_yes';
+	retain destination;
+end;
+if destination = 'banktrain_yes' then output banktrain_yes;
+else output banktest_yes;
+drop destination;
+run;
+
+data banktrain;
+set banktrain_yes banktrain_no;
+run;
+
+data banktest;
+set banktest_yes banktest_no;
+run;
+
+*Logisitic regression on training set using Jac selected variables;
+
+proc logistic data=banktrain;
+class Subscription job education default month poutcome / param=ref;
+model Subscription =  job education default month poutcome duration age cons_conf_idx euribor3m / scale=none aggregate influence lackfit;
+run;
