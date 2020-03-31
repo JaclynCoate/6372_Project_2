@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r read in data files}
 set.seed(1)
-df.noNumeric <- data.frame(read.csv("/Users/michaelstephan/Desktop/SMU/spring 2020/Applied Statistics/Final Project/6372_Project_2/Data/bank-model input-no continuous.csv"))
+df.noNumeric <- data.frame(read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/bank-model input-no continuous.csv"))
 head(df.noNumeric)
 table(df.noNumeric$Subscription)
 ```
