@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r read in data files}
 set.seed(1)
 df.noNumeric <- data.frame(read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/bank-model input-no continuous.csv"))
+df.noNumeric <- select(df.noNumeric, -duration) #drop duration. This variable cannot be determined before the call is made so it cannot be included in models. 
 head(df.noNumeric)
 table(df.noNumeric$Subscription)
 ```
