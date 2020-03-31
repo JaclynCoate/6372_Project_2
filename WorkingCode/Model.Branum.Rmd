@@ -1,0 +1,173 @@
+---
+title: "Model.Branum"
+author: "Michael (Branum) Stephan"
+date: "3/29/2020"
+output: html_document
+---
+
+```{r echo=FALSE, message=FALSE}
+library(tidyverse)
+library(caret)
+library(ROSE)
+library(forcats)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r read in data files}
+set.seed(1)
+df.noNumeric <- data.frame(read.csv("/Users/michaelstephan/Desktop/SMU/spring 2020/Applied Statistics/Final Project/6372_Project_2/Data/bank-model input-no continuous.csv"))
+head(df.noNumeric)
+table(df.noNumeric$Subscription)
+```
+
+```{r create test-train split}
+trainIndex <- createDataPartition(df.noNumeric$Subscription, p = .8, 
+                                  list = FALSE, 
+                                  times = 1)
+df.noNumeric.train <- df.noNumeric[trainIndex, ]
+df.noNumeric.test <- df.noNumeric[-trainIndex, ]
+```
+
+```{r}
+fitControl <- trainControl(## 10-fold CV
+  method = "cv",
+  number = 10,
+  savePredictions = TRUE
+)
+
+
+model.noNumeric <- train(Subscription ~., data=df.noNumeric.train, method="glm", family=binomial(), trControl=fitControl)
+summary(model.noNumeric)
+varImp(model.noNumeric)
+```
+Based on the model created above, we can evaluate on our test set below: 
+```{r}
+# testing model
+predictions.noNumeric <- predict(model.noNumeric, df.noNumeric.test)
+confusionMatrix(predictions.noNumeric, df.noNumeric.test$Subscription)
+```
+Based on the initial model, we have an extremely high sensitivity but an extremely low specificity. Therefore, the model has some bias towards estimating "no" significatnly more than "yes". Due to the high imbalence of ~8-1 no's to yes's, I am going to utilize random oversampling to see if we achieve better results.
+
+```{r}
+df.noNumeric.balanced <- ROSE(Subscription~., data = df.noNumeric)$data
+table(df.noNumeric.balanced$Subscription)
+```
+We can now see an even balanced of "yes" and "no" in the data set. The addition of synthetic values should decrease the bias in the training set. We will start with the same split percentage (80-20). 
+
+```{r}
+trainIndex <- createDataPartition(df.noNumeric.balanced$Subscription, p = .8, 
+                                  list = FALSE, 
+                                  times = 1)
+df.noNumeric.balanced.train <- df.noNumeric.balanced[trainIndex, ]
+df.noNumeric.balanced.test <- df.noNumeric.balanced[-trainIndex, ]
+```
+
+We will utilize the same fit control criteria as before (10-fold cross validation) and have not modified any tuning parameters.
+
+```{r}
+fitControl <- trainControl(## 10-fold CV
+  method = "cv",
+  number = 10,
+  savePredictions = TRUE
+)
+
+
+model.noNumeric.balanced <- train(Subscription ~., data=df.noNumeric.balanced.train, method="glm", family=binomial(), trControl=fitControl)
+
+summary(model.noNumeric.balanced)
+varImp(model.noNumeric.balanced)
+```
+With our new, balanced model, we will now evaluate performance.
+
+```{r}
+# testing model
+predictions.noNumeric.balanced <- predict(model.noNumeric.balanced, df.noNumeric.balanced.test)
+confusionMatrix(predictions.noNumeric.balanced, df.noNumeric.balanced.test$Subscription)
+```
+The only change that we have made here is to perform synthetic oversampling in order to better balance the response. In doing so, we hae drastically increased the specificity to create a much more balanced data set at the sacrifice of some overall model accuracy. In order to create better performance, we are going to include some custom grouping of features and analyze on the same model indices to ensure that we are utilizing the same random train-test sample.
+
+```{r performing some additional modeling}
+df.noNumeric.balanced.2 <- df.noNumeric.balanced %>% mutate(
+  student_retired = case_when(
+    job == "student" | job == "retired" ~ 1,
+    TRUE ~ 0
+  ),
+  default.grouped = case_when(
+    default == "unknown" | default == "no" ~ 1,
+    TRUE ~ 0
+  ),
+  prime_months = case_when(
+    month == "sep" | month == "oct" | month == "mar" | month == "dec" ~ 1,
+    TRUE ~ 0
+  ),
+  succesful_campaign = case_when(
+    poutcome == "success" ~ 1,
+    TRUE ~ 0
+  ),
+  age.senior = case_when(
+    age >= 60 ~ 1,
+    TRUE ~ 0
+  ),
+  euribor3m.grouped = case_when(
+    euribor3m > 3 ~ 1,
+    TRUE ~ 0
+  ),
+  
+  illiterate = case_when(
+    education == "illiterate" ~ 1, 
+    TRUE ~0
+  )
+)
+head(df.noNumeric.balanced.2)
+```
+```{r}
+# splitting into SAME train test splits
+df.noNumeric.balanced.2.train = df.noNumeric.balanced.2[trainIndex, ]
+df.noNumeric.balanced.2.test = df.noNumeric.balanced.2[-trainIndex, ]
+```
+
+```{r}
+fitControl <- trainControl(## 10-fold CV
+  method = "cv",
+  number = 10,
+  savePredictions = TRUE
+)
+
+model.noNumeric.balanced.2 <- train(Subscription ~., data=df.noNumeric.balanced.2.train %>% 
+                                      select(Subscription, student_retired, default.grouped, illiterate, prime_months,                                         succesful_campaign,age.senior, euribor3m.grouped), method="glm", family=binomial(),                                       trControl=fitControl)
+```
+
+```{r}
+summary(model.noNumeric.balanced.2)
+varImp(model.noNumeric.balanced.2)
+```
+
+```{r}
+predictions.noNumeric.balanced.2 <- predict(model.noNumeric.balanced.2, df.noNumeric.balanced.2.test)
+confusionMatrix(predictions.noNumeric.balanced.2, df.noNumeric.balanced.2.test$Subscription)
+```
+
+There appears to be a pretty significant increase in specificity and now our model appears to be much more balanced. The next steps are some additional exploration on the new features to experiment with cutoffs for each group.
+
+```{r Categorical Variable Review Grid}
+df.noNumeric.balanced.2 %>% ggplot(aes(x=education, fill = Subscription)) + geom_bar(position = "fill", alpha = 0.9) + coord_flip()
+
+df.noNumeric.balanced.2 %>% ggplot(aes(x=illiterate, fill = Subscription)) + geom_bar(position = "fill", alpha = 0.9) + coord_flip()
+```
+Looking at our illiterate group, there is some slight seperation, but nothing super signficant.
+```{r 'Categorical Variable Review Grid', fig.width = 6,fig.height = 10}
+df.noNumeric.balanced.2 %>% 
+  mutate(job_education = paste(df.noNumeric.balanced.2$job, df.noNumeric.balanced.2$education, sep="_")) %>% 
+  ggplot(aes(x=fct_reorder(job_education, as.numeric(Subscription), fun = mean))) + geom_bar(position = "fill", alpha = 0.9) + coord_flip() + ggtitle("Profession and Education vs. Subscription")
+```
+Let's see if there is any interaction that might be present in the data.
+
+
+
+
+
+
+
