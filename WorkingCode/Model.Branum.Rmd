@@ -151,6 +151,48 @@ predictions.noNumeric.balanced.2 <- predict(model.noNumeric.balanced.2, df.noNum
 confusionMatrix(predictions.noNumeric.balanced.2, df.noNumeric.balanced.2.test$Subscription)
 ```
 
+
+
+### (JTE) ROC Curve Examples
+
+3 Different pacakges for generating ROC Curves. I tried for a while to get any to work going straight from the models run above, but I cant get any of the generated predictions to work with these. 
+
+```{r}
+#Have to simplify model code to generate correctly foramtted predictions for ROC packages. For some reason predictions from CV methods above do not work.
+model<-glm(Subscription ~.,  data=df.noNumeric.balanced.2.train,family = "binomial")
+```
+
+```{r ROC Curves using ROCit}
+#So far I like this one best
+library(ROCit)
+
+ROCit_obj <- rocit(score=predict(model),class=df.noNumeric.balanced.2.train$Subscription)
+plot(ROCit_obj)
+text(x = .40, y = .6,paste("AUC = ", round(ROCit_obj$AUC,3), sep = ""))
+```
+
+```{r ROC Curves using ROCR}
+#This is the one used in Turner's "AutoClassify.R" file in Unit 12.
+library(ROCR)
+
+pred <- prediction(predict(model), df.noNumeric.balanced.2.train$Subscription)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+plot(roc.perf,main="ROC Plot")
+abline(a=0, b= 1) #Ref line indicating poor performance
+text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+#not sure why the last line doesnt work - for this run AUC is .792
+```
+
+```{r ROC Curves using precrec}
+library(precrec)
+
+precrec_obj <- evalmod(scores = predict(model), labels = df.noNumeric.balanced.2.train$Subscription)
+autoplot(precrec_obj)
+```
+
+
+
 There appears to be a pretty significant increase in specificity and now our model appears to be much more balanced. The next steps are some additional exploration on the new features to experiment with cutoffs for each group.
 
 ```{r Categorical Variable Review Grid}
