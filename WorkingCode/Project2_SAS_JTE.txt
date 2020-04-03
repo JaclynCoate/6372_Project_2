@@ -62,9 +62,38 @@ data banktest;
 set banktest_yes banktest_no;
 run;
 
-*Logisitic regression on training set using Jac selected variables;
 
+*This will calculate predictions for both the training and test sets with the "score" option;
+proc logistic data=banktrain plots=ROC;
+class Subscription job education default month poutcome / param=ref;
+model Subscription(event='ye') =  job education default month poutcome age cons_conf_idx euribor3m / scale=none aggregate lackfit outroc=trainroc;
+output out=trainpreds;
+score data=banktest out=testpreds outroc=testroc fitstat;
+run;
+
+
+*This will prpduce ROC curves with different variables omitted;
 proc logistic data=banktrain;
 class Subscription job education default month poutcome / param=ref;
-model Subscription =  job education default month poutcome duration age cons_conf_idx euribor3m / scale=none aggregate influence lackfit;
+model Subscription(event='ye') =  job education default month poutcome age cons_conf_idx euribor3m / scale=none aggregate lackfit outroc=trainroc;
+output out=trainpreds;
+score data=banktest out=testpreds outroc=testroc fitstat;
+roc 'model 1' job education default;
+roc 'model 2' month poutcome age;
+roc 'model 3' cons_conf_idx euribor3m;
+roc 'model 4' job education default month poutcome age;
+roc 'full model' job education default month poutcome age cons_conf_idx euribor3m ;
+roccontrast reference('model 3') /estimate ;
+run;
+
+
+
+*Ignore this for now...;
+proc plm source=train_logit;
+score data=banktest out=test_scored predicted=p / ilink;
+run;
+data test_scored;
+set test_scored;
+if p > 0.5 then Subscription_pred = 1;
+else Subscription_pred = 0;
 run;
