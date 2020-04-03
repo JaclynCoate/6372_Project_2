@@ -87,6 +87,16 @@ roccontrast reference('model 3') /estimate ;
 run;
 
 
+*This will use forward, backward, or stepwise to select variables and will check model on test set;
+proc logistic data=banktrain;
+class Subscription marital housing loan day_of_week job education default month poutcome / param=ref;
+model Subscription(event='ye') =  marital job education default day_of_week housing loan month poutcome age cons_conf_idx euribor3m
+/ selection=forward scale=none aggregate lackfit outroc=trainroc;
+output out=trainpreds;
+score data=banktest out=testpreds outroc=testroc fitstat;
+run;
+
+
 
 *Ignore this for now...;
 proc plm source=train_logit;
