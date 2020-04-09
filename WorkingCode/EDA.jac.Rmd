@@ -228,3 +228,9 @@ bank4 <- select(bank3, -c("marital", "housing", "loan", "day_of_week"))
 ```{r summary of variables}
 summary(bank4)
 ```
+
+#### Export data set for simple logistic analysis 
+
+```{r}
+write.csv(bank4, file="/Users/Jaco/Desktop/SMU/Spring2020/DS_6372_Applied_Statistics/Project.2/Data/modelingdata.csv")
+```
