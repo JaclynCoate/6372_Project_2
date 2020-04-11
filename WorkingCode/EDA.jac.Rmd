@@ -130,11 +130,11 @@ for(i in densityPlotsList){
 ```
 
 ##### Continuous Variable Removal
-- As we can see from the above boxplots the continuous variable ranges for the Yes and No outcomes of the subscription do not greatly differ. Once could argue that 
+#- As we can see from the above boxplots the continuous variable ranges for the Yes and No outcomes of the #subscription do not greatly differ. Once could argue that 
 
-```{r removal of all continuous variables}
+#```{r removal of all continuous variables}
 bank3 <- select(bankraw2, -c("nr.employed", "euribor3m", "emp.var.rate", "cons.price.idx", "cons.conf.idx"))
-```
+#```
 
 #### Continuous Variable Multicollinearity Check
 - Multicollinearity will weaken the model
@@ -160,13 +160,14 @@ bankraw2 %>% keep(is.numeric) %>% cor %>% corrplot("upper", addCoef.col = "white
 
 ```{r attrition: removing highly correlated variable}
 #Removing reviews_per_month due to high correlation of is and number_of_reviews
-bank3 <- select(bankraw2, -c("pdays", "euribor3m", "nr.employed", "emp.var.rate"))
+bank3 <- select(bankraw2, -c("pdays", "euribor3m", "nr.employed", "emp.var.rate", "age"))
 skim(bank3)
 ```
 
 - After reviewing the need to remove the below variables is clear. Due to their correlation with eachother, they could weaken our model
   - "euribor3m", "nr.employed", "emp.var.rate"
 - Additionally, seeing the "pdays" and previous are highly correlated we choose to remove "pdays" since we think this will be more useful as a categorical variable in Object 2
+- Lastly, we see that "age" has no true significance on the indepenent variable. Removing as well.
 - See correlation matrix below after correlated continuous variables have been removed
 
 ```{r correlation matrix 2}
