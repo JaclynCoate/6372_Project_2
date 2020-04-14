@@ -182,3 +182,28 @@ bank4 <- select(bank3, -c("marital", "housing", "loan", "day_of_week"))
 summary(bank4)
 write.csv(bank4, "/Users/michaelstephan/Desktop/SMU/spring 2020/Applied Statistics/Project 2/6372_Project_2/Data/bank-model input-no continuous.csv")
 ```
+
+### Adding new interactions
+```{r}
+# job and education
+bankraw %>% mutate(new = paste(job, education, sep="_")) %>% ggplot(aes(x=new, fill = Subscription)) + geom_bar(position="fill") + coord_flip() + ggtitle("Job and Education Colored by Subscription")
+
+# month and marketing campaign
+bankraw %>% mutate(new = paste(month, poutcome, sep="_")) %>% ggplot(aes(x=new, fill = Subscription)) + geom_bar(position="fill") + coord_flip() + ggtitle("Month and Marketing Campaign Colored by Subscription")
+
+# find job breakdown
+bankraw %>% group_by(job) %>% tally() %>% ggplot(aes(x="", y=n, fill = job)) + geom_bar(stat="identity") + coord_polar("y", start=0) + ggtitle("Percent Job Breakdown (Targeting the Majority")
+
+# job breakdown of those who subscribed
+bankraw %>% filter(Subscription == "yes") %>% group_by(job) %>% tally() %>% ggplot(aes(x="", y=n, fill = job)) + geom_bar(stat="identity") + coord_polar("y", start=0) + ggtitle("Percent Job Breakdown (Targeting Yes Subscriptions)")
+
+# find age breakdown (seniors)
+
+
+# job and age (seniors)
+bankraw %>% mutate(senior = case_when(age >= 65 ~ "senior", TRUE ~ "not senior")) %>% mutate(new = paste(job, senior, sep="_")) %>% ggplot(aes(x=new, fill = Subscription)) + geom_bar(position="fill") + coord_flip() + ggtitle("Job and Age Colored by Subscription")
+
+# see breakdown by position count
+bankraw %>% mutate(senior = case_when(age >= 65 ~ "senior", TRUE ~ "not senior")) %>% mutate(new = paste(job, senior, sep="_")) %>% group_by(new) %>% tally() %>% ggplot(aes(x="", y=n, fill = new)) + geom_bar(stat="identity") + coord_polar("y", start=0) + ggtitle("Job and Age Percent Breakdown (Targeting the Majority)")
+
+```

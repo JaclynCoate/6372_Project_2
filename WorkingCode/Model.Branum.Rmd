@@ -10,85 +10,154 @@ library(tidyverse)
 library(caret)
 library(ROSE)
 library(forcats)
+library(MLeval)
+library(gridExtra)
 ```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+I'm going to spend the first part of this markdown making some reproducible functions for later analysis...
+
+```{r}
+
+# set model labels in order to easily identify them in other functions
+set_model_label<- function(model, label){
+  model$modelInfo$label <- label
+}
+
+# let's store this as a function as we progress through additional EDA
+make_predictions <- function(model_list, test_dataframe, predCol){
+
+# creating list output  
+result = matrix(nrow = length(model_list), ncol=4)
+x = 1
+
+# iterate each item, predict, and gather statistics
+for (item in model_list){
+  # make model predictions
+  predictions <- predict(item, newdata = test_dataframe)
+  print(predictions)
+  cm <- confusionMatrix(predictions, test_dataframe[,predCol])
+
+  model_name <- item$modelInfo$label
+  sensitivity <- cm$byClass["Sensitivity"]
+  specificity <- cm$byClass["Specificity"]
+  accuracy <- cm$overall["Accuracy"]
+  
+  result[x, 1] <- model_name
+  result[x, 2] <- as.numeric(sensitivity)
+  result[x, 3] <- as.numeric(specificity)
+  result[x, 4] <- as.numeric(accuracy)
+  x = x + 1
+}
+df_out <- as.data.frame(result)
+colnames(df_out) = c("model_name", "sensitivity", "specificity", "accuracy")
+return(df_out)
+}
+
+# create comparative bar plots for models based on their predictions
+model_bar_plots <- function(df){
+output_list = list()
+i = 1
+for(column in c("sensitivity", "specificity", "accuracy")){
+p <- output %>% ggplot(aes_string(fill = "model_name", x = "model_name", y = column)) + geom_bar(stat = "identity") + ggtitle(paste("Model Comparison - ", column, sep = ""))
+  output_list[[i]] = p
+  i = i + 1
+}
+do.call(grid.arrange, output_list)
+}
+
+# build a function to generate ROC plots
+generate_roc_plots <- function(model_list, names_list = NULL){
+  
+  # check for user default label entered
+  if(is.null(names_list)){
+    names_list = c()
+    
+    # iterate each model for their respective labels
+    i = 1
+    for(model in model_list){
+    names_list[i] = model$modelInfo$label
+    i = i + 1
+    }
+  }
+  evalm(model_list, gnames=names_list)
+}
+
+# function to generate comparative bar plots and ROC plots
+compare_models <- function(model_list, test_dataframe, predCol){
+  # sensitivity, specificity, accuracy
+  model_bar_plots(make_predictions(model_list, test_dataframe, predCol))
+  
+  # ROC
+  generate_roc_plots(model_list)
+}
+
+```
+
 
 ```{r read in data files}
-set.seed(1)
-df.noNumeric <- data.frame(read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/bank-model input-no continuous.csv"))
-df.noNumeric <- select(df.noNumeric, -duration) #drop duration. This variable cannot be determined before the call is made so it cannot be included in models. 
-head(df.noNumeric)
-table(df.noNumeric$Subscription)
-```
+# create training set
+df.train <- data.frame(read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/Training_Test_Splits/banktrain_raw.csv"))
+df.train <- select(df.train, -duration) #drop duration. This variable cannot be determined before the call is made so it cannot be included in models. 
 
-```{r create test-train split}
-trainIndex <- createDataPartition(df.noNumeric$Subscription, p = .8, 
-                                  list = FALSE, 
-                                  times = 1)
-df.noNumeric.train <- df.noNumeric[trainIndex, ]
-df.noNumeric.test <- df.noNumeric[-trainIndex, ]
-```
+# create test set
+df.test <- data.frame(read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/Training_Test_Splits/banktest_raw.csv"))
+df.test <- select(df.test, -duration) #drop duration. This variable cannot be determined before the call is made so it cannot be included in models. 
 
+# yes is not available in the training set
+df.test <- df.test %>% filter(default != "yes")
+
+# display training set
+skimr::skim(df.train)
+skimr::skim(df.test)
+```
+Training the base case logistic regression model
 ```{r}
-fitControl <- trainControl(## 10-fold CV
+
+# specifying internal cv
+fitControl <- trainControl(
   method = "cv",
   number = 10,
-  savePredictions = TRUE
+  savePredictions = T,
+  summaryFunction=twoClassSummary, 
+  classProbs=T,
 )
 
 
-model.noNumeric <- train(Subscription ~., data=df.noNumeric.train, method="glm", family=binomial(), trControl=fitControl)
-summary(model.noNumeric)
-varImp(model.noNumeric)
+logistic.base <- train(Subscription ~., data=df.train, method="glm", family=binomial(), trControl=fitControl)
+summary(logistic.base)
+varImp(logistic.base)
 ```
-Based on the model created above, we can evaluate on our test set below: 
+Training the base case KNN model
 ```{r}
-# testing model
-predictions.noNumeric <- predict(model.noNumeric, df.noNumeric.test)
-confusionMatrix(predictions.noNumeric, df.noNumeric.test$Subscription)
-```
-Based on the initial model, we have an extremely high sensitivity but an extremely low specificity. Therefore, the model has some bias towards estimating "no" significatnly more than "yes". Due to the high imbalence of ~8-1 no's to yes's, I am going to utilize random oversampling to see if we achieve better results.
+knn.base <- train(Subscription ~., data=df.train, method = "knn", trControl = fitControl, preProcess = c("center","scale"))
 
-```{r}
-df.noNumeric.balanced <- ROSE(Subscription~., data = df.noNumeric)$data
-table(df.noNumeric.balanced$Subscription)
-```
-We can now see an even balanced of "yes" and "no" in the data set. The addition of synthetic values should decrease the bias in the training set. We will start with the same split percentage (80-20). 
-
-```{r}
-trainIndex <- createDataPartition(df.noNumeric.balanced$Subscription, p = .8, 
-                                  list = FALSE, 
-                                  times = 1)
-df.noNumeric.balanced.train <- df.noNumeric.balanced[trainIndex, ]
-df.noNumeric.balanced.test <- df.noNumeric.balanced[-trainIndex, ]
+summary(knn.base)
 ```
 
-We will utilize the same fit control criteria as before (10-fold cross validation) and have not modified any tuning parameters.
+Training the base case 
+```{r}
+rf.base <- train(Subscription ~., data=df.train, method="rf", trControl = fitControl)
+summary(rf.base)
+```
+Now, it's time for our model comparison.
 
 ```{r}
-fitControl <- trainControl(## 10-fold CV
-  method = "cv",
-  number = 10,
-  savePredictions = TRUE
-)
+set_model_label(knn.base, "Base KNN")
+set_model_label(rf.base, "Base RF")
+set_model_label(logistic.base, "Base MLR")
 
-
-model.noNumeric.balanced <- train(Subscription ~., data=df.noNumeric.balanced.train, method="glm", family=binomial(), trControl=fitControl)
-
-summary(model.noNumeric.balanced)
-varImp(model.noNumeric.balanced)
+compare_models(list(knn.base, rf.base, logistic.base), df.test, "Subscription")
 ```
-With our new, balanced model, we will now evaluate performance.
 
-```{r}
-# testing model
-predictions.noNumeric.balanced <- predict(model.noNumeric.balanced, df.noNumeric.balanced.test)
-confusionMatrix(predictions.noNumeric.balanced, df.noNumeric.balanced.test$Subscription)
-```
-The only change that we have made here is to perform synthetic oversampling in order to better balance the response. In doing so, we hae drastically increased the specificity to create a much more balanced data set at the sacrifice of some overall model accuracy. In order to create better performance, we are going to include some custom grouping of features and analyze on the same model indices to ensure that we are utilizing the same random train-test sample.
+Based on the initial model, we have pretty good results, but the specificity is a little low. Let's see if we can add some features to enhance the prediction capabilities of the model and then recompare.
+
+# TODO: ADD EDA FROM BOTTOM OF EDA.Branum.Rmd
+# TODO: USE JOB & AGE, MONTH & MARKETING CAMPAIGN IN MODELS AND COMPARE!
+
+
 
 ```{r performing some additional modeling}
 df.noNumeric.balanced.2 <- df.noNumeric.balanced %>% mutate(
