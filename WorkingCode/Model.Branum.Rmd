@@ -12,6 +12,7 @@ library(ROSE)
 library(forcats)
 library(MLeval)
 library(gridExtra)
+library(skimr)
 ```
 
 ```{r setup, include=FALSE}
@@ -152,51 +153,67 @@ set_model_label(logistic.base, "Base MLR")
 compare_models(list(knn.base, rf.base, logistic.base), df.test, "Subscription")
 ```
 
-Based on the initial model, we have pretty good results, but the specificity is a little low. Let's see if we can add some features to enhance the prediction capabilities of the model and then recompare.
-
-# TODO: ADD EDA FROM BOTTOM OF EDA.Branum.Rmd
-# TODO: USE JOB & AGE, MONTH & MARKETING CAMPAIGN IN MODELS AND COMPARE!
-
-
-
-```{r performing some additional modeling}
-df.noNumeric.balanced.2 <- df.noNumeric.balanced %>% mutate(
-  student_retired = case_when(
-    job == "student" | job == "retired" ~ 1,
-    TRUE ~ 0
-  ),
-  default.grouped = case_when(
-    default == "unknown" | default == "no" ~ 1,
-    TRUE ~ 0
-  ),
-  prime_months = case_when(
-    month == "sep" | month == "oct" | month == "mar" | month == "dec" ~ 1,
-    TRUE ~ 0
-  ),
-  succesful_campaign = case_when(
-    poutcome == "success" ~ 1,
-    TRUE ~ 0
-  ),
-  age.senior = case_when(
-    age >= 60 ~ 1,
-    TRUE ~ 0
-  ),
-  euribor3m.grouped = case_when(
-    euribor3m > 3 ~ 1,
-    TRUE ~ 0
-  ),
-  
-  illiterate = case_when(
-    education == "illiterate" ~ 1, 
-    TRUE ~0
-  )
-)
-head(df.noNumeric.balanced.2)
-```
+Based on the initial model, we have pretty good results, but the specificity is a little low. Let's see if we can add some features to enhance the prediction capabilities of the model and then recompare. First, let's remove non-significant variables based on the statistical significance of the logistic regression.
 ```{r}
-# splitting into SAME train test splits
-df.noNumeric.balanced.2.train = df.noNumeric.balanced.2[trainIndex, ]
-df.noNumeric.balanced.2.test = df.noNumeric.balanced.2[-trainIndex, ]
+summary(logistic.base)
+```
+It appears that job status, default status, month, day of week, emp_var_rate, cons_price_idx, and euribor3m are all significant, so let's start by using only these values and retraining some new models and comparing.
+```{r}
+# creating a reduced set size
+df.train.reduced <- df.train %>% select(Subscription, job, default, month, day_of_week, emp_var_rate, cons_price_idx, euribor3m, poutcome)
+
+df.test.reduced <- df.test %>% select(Subscription, job, default, month, day_of_week, emp_var_rate, cons_price_idx, euribor3m, poutcome)
+```
+
+Now, let's train our models
+```{r}
+
+# training with a reduced data set
+logistic.reduced <- train(Subscription ~., data=df.train.reduced, method="glm", family=binomial(), trControl=fitControl)
+knn.reduced <- train(Subscription ~., data=df.train.reduced, method = "knn", trControl = fitControl, preProcess = c("center","scale"))
+rf.reduced <- train(Subscription ~., data=df.train.reduced, method="rf", trControl = fitControl)
+
+```
+Let's compare our reduced models and see how we did.
+```{r}
+compare_models(list(knn.reduced, rf.reduced, logistic.reduced), df.test.reduced, "Subscription")
+
+```
+In looking at our reduced model, we don't necessarily see any real benefit in performance other than a reduction in model complexity. Let's next try the models with the "final" from the eda file and see how that compares to the reduced "base case" scenario.
+
+```{r}
+
+# add interaction for job/age and month/poutcome
+df.train.engineered <- df.train.reduced %>% 
+  mutate(optimal_months = case_when(month == "sep" ~ 1, month == "oct" ~ 1, month == "mar" ~ 1, month == "dec" ~ 1, TRUE ~ 0), month_and_campaign = paste(optimal_months, poutcome, sep="_"), senior = case_when(df.train$age > 60 ~ 1, TRUE ~0), job_seniority = paste(job, senior, sep="_"),
+defaulted = case_when(default == "unknown" ~ 1, default == "no" ~ 1, TRUE ~ 0)) %>% 
+  select(-one_of(c("poutcome", "month", "optimal_months", "job", "senior", "day_of_week", "default", "cons_price_idx", "euribor3m")))
+
+df.test.engineered <- df.test.reduced %>% 
+  mutate(optimal_months = case_when(month == "sep" ~ 1, month == "oct" ~ 1, month == "mar" ~ 1, month == "dec" ~ 1, TRUE ~ 0), month_and_campaign = paste(optimal_months, poutcome, sep="_"), senior = case_when(df.test$age > 60 ~ 1, TRUE ~0), job_seniority = paste(job, senior, sep="_"),
+defaulted = case_when(default == "unknown" ~ 1, default == "no" ~ 1, TRUE ~ 0)) %>% 
+  select(-one_of(c("poutcome", "month", "optimal_months", "job", "senior", "day_of_week", "default", "cons_price_idx", "euribor3m")))
+```
+Let's check out our new data sets
+
+```{r}
+skim(df.train.engineered)
+```
+
+```{r}
+# training with a reduced data set
+logistic.engineered <- train(Subscription ~., data=df.train.engineered, method="glm", family=binomial(), trControl=fitControl)
+knn.engineered <- train(Subscription ~., data=df.train.engineered, method = "knn", trControl = fitControl, preProcess = c("center","scale"))
+rf.engineered <- train(Subscription ~., data=df.train.engineered, method="rf", trControl = fitControl)
+```
+
+```{r}
+compare_models(list(knn.engineered, rf.engineered, logistic.engineered), df.test.engineered, "Subscription")
+```
+
+```{r}
+# TODO: ADDRESS MISSING LEVELS IN TRAIN SET
+predict(rf.engineered, newdata=df.test.engineered)
 ```
 
 ```{r}
