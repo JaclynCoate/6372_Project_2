@@ -1,5 +1,5 @@
 ---
-title: "LDA for Objective.2"
+title: "LDA/QDA for Objective.2"
 author: "Jaclyn A Coate"
 date: "4/10/2020"
 output: html_document
@@ -56,14 +56,16 @@ banktrain3 %>% pairs(,col=banktrain3$Subscription)
 ### LDA
 
 ```{r lda}
-mylda <- lda(Subscription~.,data=banktrain3)
+mylda <- lda(Subscription~ cons_price_idx + cons_conf_idx + euribor3m,data=banktrain)
 #Predictions can come in many forms, the class form provides the categorical level of your response
 Pred <- predict(mylda,newdata = banktest)$class
-
+#Manual Creating confusion matrix
 Truth <- banktest$Subscription
-x <- table(Pred,Truth) #Creating confusion matrix
+x <- table(Pred,Truth) 
 x
-#Confusion matrix function
+```
+
+```{r lda Confusion matrix function}
 CMlda <- confusionMatrix(Pred,Truth)
 CMlda
 ```
@@ -71,14 +73,16 @@ CMlda
 ### QDA
 
 ```{r qda}
-myqda <- qda(Subscription~.,data=banktrain3)
+myqda <- qda(Subscription~ cons_price_idx + cons_conf_idx + euribor3m,data=banktrain)
 #Predictions can come in many forms, the class form provides the categorical level of your response
 PredQ <- predict(myqda,newdata = banktest)$class
-
+#Creating confusion matrix
 TruthQ <- banktest$Subscription
-x <- table(PredQ,TruthQ) #Creating confusion matrix
+x <- table(PredQ,TruthQ)
 x
+```
 
+```{r qda Confusion matrix function}
 CMqda <- confusionMatrix(PredQ, TruthQ)
 CMqda
 ```
