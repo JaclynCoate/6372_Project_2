@@ -12,7 +12,7 @@ The purpose of this repository is to share our collaborative work in order to co
 * [Data] - data for the project
 
 ## Contributors
-Please contact any of the members below: 
+These individual contributors put in equal amounts of work in order to accomplish the final written report. Feel free to contact any of the members below: 
  - Jaclyn Coate: jcoate@smu.edu
  - Josh Eysenbach: jeysenbach@smu.edu
  - Branum Stephan: bstephan@smu.edu
