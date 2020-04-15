@@ -191,13 +191,15 @@ bankraw %>% mutate(new = paste(job, education, sep="_")) %>% ggplot(aes(x=new, f
 # month and marketing campaign
 bankraw %>% mutate(new = paste(month, poutcome, sep="_")) %>% ggplot(aes(x=new, fill = Subscription)) + geom_bar(position="fill") + coord_flip() + ggtitle("Month and Marketing Campaign Colored by Subscription")
 
+# month and marketing campaign broken down by successful months
+bankraw %>% mutate(new = paste(case_when(month=="sep" ~1, month=="oct" ~1, month=="mar"~1, month=="dec"~1, TRUE~0), poutcome, sep="_")) %>% ggplot(aes(x=new, fill = Subscription)) + geom_bar(position="fill") + coord_flip() + ggtitle("Month Success and Marketing Campaign Colored by Subscription")
+
 # find job breakdown
 bankraw %>% group_by(job) %>% tally() %>% ggplot(aes(x="", y=n, fill = job)) + geom_bar(stat="identity") + coord_polar("y", start=0) + ggtitle("Percent Job Breakdown (Targeting the Majority")
 
 # job breakdown of those who subscribed
 bankraw %>% filter(Subscription == "yes") %>% group_by(job) %>% tally() %>% ggplot(aes(x="", y=n, fill = job)) + geom_bar(stat="identity") + coord_polar("y", start=0) + ggtitle("Percent Job Breakdown (Targeting Yes Subscriptions)")
 
-# find age breakdown (seniors)
 
 
 # job and age (seniors)
