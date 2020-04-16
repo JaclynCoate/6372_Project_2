@@ -46,6 +46,12 @@ skim(banktrain3)
 invisible(view(banktrain3))
 ```
 
+### Comparing Yes v No Count
+
+```{r subscription results check}
+banktrain3 %>% group_by(Subscription) %>% tally()
+```
+
 ### Paris Scatter Plot
 - Pairs scatter plot to see if there is any separation
   - We don't see a lot so we break up the data set for larger visualizations
