@@ -18,7 +18,7 @@ These individual contributors put in equal amounts of work in order to accomplis
  - Branum Stephan: bstephan@smu.edu
 
  [Written Analysis]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/WrittenAnalysis>
- [CodeBooks]: <https://github.com/JaclynCoate/6372_Project_1/tree/master/Codebooks>
+ [CodeBooks]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/Codebooks>
  [Requirements]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/Requirements>
  [WorkingCode]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/WorkingCode>         
  [Data]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/Data>   
