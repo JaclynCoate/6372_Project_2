@@ -6,6 +6,7 @@ The purpose of this repository is to share our collaborative work in order to co
 
 ## Github Project 2 Structure
 * [Written Analysis] - final written paper containing an introduction, EDA, a logistic regression model, and comparative model analysis
+* [Analysis Drafts]- the multiple written drafts to get to our final written analysis for work reference
 * [Codebooks] - contains a knittable rmd codebook for each of the objectives and their corresponding HTML files
 * [Requirements] - project requirements and example projects
 * [WorkingCode] - individual code books that were worked on separately
@@ -22,3 +23,4 @@ These individual contributors put in equal amounts of work in order to accomplis
  [Requirements]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/Requirements>
  [WorkingCode]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/WorkingCode>         
  [Data]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/Data>   
+ [Analysis Drafts]: <https://github.com/JaclynCoate/6372_Project_2/tree/master/AnalysisDrafts>
