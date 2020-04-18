@@ -1,7 +1,7 @@
 ---
 title: "Model.Branum"
-author: "Michael (Branum) Stephan"
-date: "3/29/2020"
+author: "Michael (Branum) Stephan, Jaclyn Coate, Josh Eysenbach"
+date: "4/18/2020"
 output: html_document
 ---
 
@@ -16,17 +16,20 @@ library(skimr)
 ```
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
 ```
-I'm going to spend the first part of this markdown making some reproducible functions for later analysis...
 
+I'm going to spend the first part of this markdown making some reproducible functions for later analysis. The following function sets the model label for using in other functions later on.
 ```{r}
 
 # set model labels in order to easily identify them in other functions
 set_model_label<- function(model, label){
   model$modelInfo$label <- label
+  return(model)
 }
-
+```
+The function below makes predictions on the dataset for all models.
+```{r}
 # let's store this as a function as we progress through additional EDA
 make_predictions <- function(model_list, test_dataframe, predCol){
 
@@ -38,7 +41,6 @@ x = 1
 for (item in model_list){
   # make model predictions
   predictions <- predict(item, newdata = test_dataframe)
-  print(predictions)
   cm <- confusionMatrix(predictions, test_dataframe[,predCol])
 
   model_name <- item$modelInfo$label
@@ -47,30 +49,42 @@ for (item in model_list){
   accuracy <- cm$overall["Accuracy"]
   
   result[x, 1] <- model_name
-  result[x, 2] <- as.numeric(sensitivity)
-  result[x, 3] <- as.numeric(specificity)
-  result[x, 4] <- as.numeric(accuracy)
+  result[x, 2] <- sensitivity
+  result[x, 3] <- specificity
+  result[x, 4] <- accuracy
   x = x + 1
 }
 df_out <- as.data.frame(result)
 colnames(df_out) = c("model_name", "sensitivity", "specificity", "accuracy")
+
+# converting data types
+df_out$sensitivity <- as.numeric(as.character(df_out$sensitivity))
+df_out$specificity <- as.numeric(as.character(df_out$specificity))
+df_out$accuracy<- as.numeric(as.character(df_out$accuracy))
 return(df_out)
 }
-
+```
+The function below generates bar plots based on the model predictions.
+```{r}
 # create comparative bar plots for models based on their predictions
 model_bar_plots <- function(df){
 output_list = list()
 i = 1
 for(column in c("sensitivity", "specificity", "accuracy")){
-p <- output %>% ggplot(aes_string(fill = "model_name", x = "model_name", y = column)) + geom_bar(stat = "identity") + ggtitle(paste("Model Comparison - ", column, sep = ""))
+p <- df %>% ggplot(aes_string(fill = "model_name", x = "model_name", y = column)) + geom_bar(stat = "identity")  + ggtitle(paste("Model Comparison - ", column, sep = "")) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + coord_cartesian(ylim = c(min(df[,column]) - 0.1, max(df[,column]) + 0.1)) + labs(fill="Model Version")
   output_list[[i]] = p
   i = i + 1
 }
-do.call(grid.arrange, output_list)
+#do.call(grid.arrange, output_list)
+for(item in output_list){
+  print(item)
 }
-
+}
+```
+The function below generates roc curves for all the models in a list.
+```{r}
 # build a function to generate ROC plots
-generate_roc_plots <- function(model_list, names_list = NULL){
+generate_roc_plots <- function(model_list, roc_header, names_list = NULL, showplots=FALSE){
   
   # check for user default label entered
   if(is.null(names_list)){
@@ -83,9 +97,13 @@ generate_roc_plots <- function(model_list, names_list = NULL){
     i = i + 1
     }
   }
-  evalm(model_list, gnames=names_list)
+  roc <- evalm(model_list, gnames=names_list, showplots=showplots)$roc
+  roc <- roc + ggtitle(roc_header)
+  print(roc)
 }
-
+```
+The following function combines predictions, bar plots, and roc plots from one convenient function.
+```{r}
 # function to generate comparative bar plots and ROC plots
 compare_models <- function(model_list, test_dataframe, predCol){
   # sensitivity, specificity, accuracy
@@ -96,8 +114,7 @@ compare_models <- function(model_list, test_dataframe, predCol){
 }
 
 ```
-
-
+Now we will read in the data files. We decided to create one single data set to train and test on in order to compare "apples to apples". 
 ```{r read in data files}
 # create training set
 df.train <- data.frame(read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/Training_Test_Splits/banktrain_raw.csv"))
@@ -114,7 +131,7 @@ df.test <- df.test %>% filter(default != "yes")
 skimr::skim(df.train)
 skimr::skim(df.test)
 ```
-Training the base case logistic regression model
+Below is the base training control that we use for all the different models.
 ```{r}
 
 # specifying internal cv
@@ -125,34 +142,41 @@ fitControl <- trainControl(
   summaryFunction=twoClassSummary, 
   classProbs=T,
 )
-
-
+```
+Now, we will run the base logistic regression model on all features to get a baseline value.
+```{r}
 logistic.base <- train(Subscription ~., data=df.train, method="glm", family=binomial(), trControl=fitControl)
 summary(logistic.base)
 varImp(logistic.base)
 ```
-Training the base case KNN model
+Training the base case KNN model on all the same features.
 ```{r}
 knn.base <- train(Subscription ~., data=df.train, method = "knn", trControl = fitControl, preProcess = c("center","scale"))
 
 summary(knn.base)
 ```
 
-Training the base case 
+Training the base case on all the same features as the KNN and Logistic models.
 ```{r}
 rf.base <- train(Subscription ~., data=df.train, method="rf", trControl = fitControl)
 summary(rf.base)
 ```
 Now, it's time for our model comparison.
-
 ```{r}
-set_model_label(knn.base, "Base KNN")
-set_model_label(rf.base, "Base RF")
-set_model_label(logistic.base, "Base MLR")
 
-compare_models(list(knn.base, rf.base, logistic.base), df.test, "Subscription")
+# setting our model labels
+knn.base <- set_model_label(knn.base, "Base KNN")
+rf.base <- set_model_label(rf.base, "Base RF")
+logistic.base <- set_model_label(logistic.base, "Base MLR")
+
+# making our predictions metrics df for each model
+preds.base <- make_predictions(list(logistic.base, knn.base, rf.base), df.test, "Subscription")
 ```
-
+Now that we have our prediction metrics dataframe for the base modle, let's generate a bar plot and ROC curve of our values and do a comparison. 
+```{r, echo=FALSE, warning=FALSE}
+model_bar_plots(preds.base)
+roc.base <- generate_roc_plots(list(logistic.base, knn.base, rf.base), "Base Model - (All Features)")
+```
 Based on the initial model, we have pretty good results, but the specificity is a little low. Let's see if we can add some features to enhance the prediction capabilities of the model and then recompare. First, let's remove non-significant variables based on the statistical significance of the logistic regression.
 ```{r}
 summary(logistic.base)
@@ -165,9 +189,8 @@ df.train.reduced <- df.train %>% select(Subscription, job, default, month, day_o
 df.test.reduced <- df.test %>% select(Subscription, job, default, month, day_of_week, emp_var_rate, cons_price_idx, euribor3m, poutcome)
 ```
 
-Now, let's train our models
-```{r}
-
+Now, let's train our models with the new reduced dataset based on more significant variables.
+```{r, warning=FALSE}
 # training with a reduced data set
 logistic.reduced <- train(Subscription ~., data=df.train.reduced, method="glm", family=binomial(), trControl=fitControl)
 knn.reduced <- train(Subscription ~., data=df.train.reduced, method = "knn", trControl = fitControl, preProcess = c("center","scale"))
@@ -175,128 +198,59 @@ rf.reduced <- train(Subscription ~., data=df.train.reduced, method="rf", trContr
 
 ```
 Let's compare our reduced models and see how we did.
-```{r}
-compare_models(list(knn.reduced, rf.reduced, logistic.reduced), df.test.reduced, "Subscription")
+```{r, echo=FALSE, warning=FALSE}
+# setting our model labels
+knn.reduced <- set_model_label(knn.reduced, "Reduced KNN")
+rf.reduced <- set_model_label(rf.reduced, "Reduced RF")
+logistic.reduced <- set_model_label(logistic.reduced, "Reduced MLR")
 
+# making our predictions and diagnostic plots
+preds.reduced <- make_predictions(list(logistic.reduced, knn.reduced, rf.reduced), df.test.reduced, "Subscription")
+model_bar_plots(preds.reduced)
+roc.reduced <- generate_roc_plots(list(logistic.reduced, knn.reduced, rf.reduced), "Reduced Model - Significant Features Only")
 ```
 In looking at our reduced model, we don't necessarily see any real benefit in performance other than a reduction in model complexity. Let's next try the models with the "final" from the eda file and see how that compares to the reduced "base case" scenario.
 
 ```{r}
-
 # add interaction for job/age and month/poutcome
 df.train.engineered <- df.train.reduced %>% 
   mutate(optimal_months = case_when(month == "sep" ~ 1, month == "oct" ~ 1, month == "mar" ~ 1, month == "dec" ~ 1, TRUE ~ 0), month_and_campaign = paste(optimal_months, poutcome, sep="_"), senior = case_when(df.train$age > 60 ~ 1, TRUE ~0), job_seniority = paste(job, senior, sep="_"),
 defaulted = case_when(default == "unknown" ~ 1, default == "no" ~ 1, TRUE ~ 0)) %>% 
   select(-one_of(c("poutcome", "month", "optimal_months", "job", "senior", "day_of_week", "default", "cons_price_idx", "euribor3m")))
 
+# NOTE: SELF-EMPLOY_1 AND SERVICES_1 ARE NOT PRESENT JOB LEVELS IN THE ENGINEERED TRAINING SET. THEREFORE, I AM OPTING TO EXCLUDE THOSE LEVELS TO ALLOW FOR PREDICTIONS.
 df.test.engineered <- df.test.reduced %>% 
   mutate(optimal_months = case_when(month == "sep" ~ 1, month == "oct" ~ 1, month == "mar" ~ 1, month == "dec" ~ 1, TRUE ~ 0), month_and_campaign = paste(optimal_months, poutcome, sep="_"), senior = case_when(df.test$age > 60 ~ 1, TRUE ~0), job_seniority = paste(job, senior, sep="_"),
 defaulted = case_when(default == "unknown" ~ 1, default == "no" ~ 1, TRUE ~ 0)) %>% 
-  select(-one_of(c("poutcome", "month", "optimal_months", "job", "senior", "day_of_week", "default", "cons_price_idx", "euribor3m")))
+  select(-one_of(c("poutcome", "month", "optimal_months", "job", "senior", "day_of_week", "default", "cons_price_idx", "euribor3m"))) %>% filter(job_seniority != "self-employ_1" & job_seniority != "services_1")
 ```
 Let's check out our new data sets
-
 ```{r}
 skim(df.train.engineered)
 ```
-
-```{r}
+The final models will be generated using engineered features to reduce predictors.
+```{r, warning=FALSE}
 # training with a reduced data set
 logistic.engineered <- train(Subscription ~., data=df.train.engineered, method="glm", family=binomial(), trControl=fitControl)
 knn.engineered <- train(Subscription ~., data=df.train.engineered, method = "knn", trControl = fitControl, preProcess = c("center","scale"))
 rf.engineered <- train(Subscription ~., data=df.train.engineered, method="rf", trControl = fitControl)
 ```
+Now, let's compare our final, engineered models.
+```{r, warning=FALSE, echo=FALSE}
+# setting our model labels
+knn.engineered <- set_model_label(knn.engineered, "Engineered KNN")
+rf.engineered <- set_model_label(rf.engineered, "Engineered RF")
+logistic.engineered <- set_model_label(logistic.engineered, "Engineered MLR")
 
-```{r}
-compare_models(list(knn.engineered, rf.engineered, logistic.engineered), df.test.engineered, "Subscription")
+# making our predictions and diagnostic plots
+preds.engineered <- make_predictions(list(logistic.engineered, knn.engineered, rf.engineered), df.test.engineered, "Subscription")
+model_bar_plots(preds.engineered)
+roc.engineered <- generate_roc_plots(list(logistic.engineered, knn.engineered, rf.engineered), "Engineered Model - Custom Features Created")
 ```
+Finally, let's do a cross comparison of each model against the other with different data sets.
+```{r, warning=FALSE, echo=FALSE}
+roc.mlr <- generate_roc_plots(list(logistic.base, logistic.reduced, logistic.engineered), "Multiple Logistic Regression - Model Comparison")
+roc.knn <- generate_roc_plots(list(knn.base, knn.reduced, knn.engineered), "K Nearest Neighbors - Model Comparison")
+roc.rf <- generate_roc_plots(list(rf.base, rf.reduced, rf.engineered), "Random Forest - Model Comparison")
 
-```{r}
-# TODO: ADDRESS MISSING LEVELS IN TRAIN SET
-predict(rf.engineered, newdata=df.test.engineered)
 ```
-
-```{r}
-fitControl <- trainControl(## 10-fold CV
-  method = "cv",
-  number = 10,
-  savePredictions = TRUE
-)
-
-model.noNumeric.balanced.2 <- train(Subscription ~., data=df.noNumeric.balanced.2.train %>% 
-                                      select(Subscription, student_retired, default.grouped, illiterate, prime_months,                                         succesful_campaign,age.senior, euribor3m.grouped), method="glm", family=binomial(),                                       trControl=fitControl)
-```
-
-```{r}
-summary(model.noNumeric.balanced.2)
-varImp(model.noNumeric.balanced.2)
-```
-
-```{r}
-predictions.noNumeric.balanced.2 <- predict(model.noNumeric.balanced.2, df.noNumeric.balanced.2.test)
-confusionMatrix(predictions.noNumeric.balanced.2, df.noNumeric.balanced.2.test$Subscription)
-```
-
-
-
-### (JTE) ROC Curve Examples
-
-3 Different pacakges for generating ROC Curves. I tried for a while to get any to work going straight from the models run above, but I cant get any of the generated predictions to work with these. 
-
-```{r}
-#Have to simplify model code to generate correctly foramtted predictions for ROC packages. For some reason predictions from CV methods above do not work.
-model<-glm(Subscription ~.,  data=df.noNumeric.balanced.2.train,family = "binomial")
-```
-
-```{r ROC Curves using ROCit}
-#So far I like this one best
-library(ROCit)
-
-ROCit_obj <- rocit(score=predict(model),class=df.noNumeric.balanced.2.train$Subscription)
-plot(ROCit_obj)
-text(x = .40, y = .6,paste("AUC = ", round(ROCit_obj$AUC,3), sep = ""))
-```
-
-```{r ROC Curves using ROCR}
-#This is the one used in Turner's "AutoClassify.R" file in Unit 12.
-library(ROCR)
-
-pred <- prediction(predict(model), df.noNumeric.balanced.2.train$Subscription)
-roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
-auc.train <- performance(pred, measure = "auc")
-plot(roc.perf,main="ROC Plot")
-abline(a=0, b= 1) #Ref line indicating poor performance
-text(x = .40, y = .6,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
-#not sure why the last line doesnt work - for this run AUC is .792
-```
-
-```{r ROC Curves using precrec}
-library(precrec)
-
-precrec_obj <- evalmod(scores = predict(model), labels = df.noNumeric.balanced.2.train$Subscription)
-autoplot(precrec_obj)
-```
-
-
-
-There appears to be a pretty significant increase in specificity and now our model appears to be much more balanced. The next steps are some additional exploration on the new features to experiment with cutoffs for each group.
-
-```{r Categorical Variable Review Grid}
-df.noNumeric.balanced.2 %>% ggplot(aes(x=education, fill = Subscription)) + geom_bar(position = "fill", alpha = 0.9) + coord_flip()
-
-df.noNumeric.balanced.2 %>% ggplot(aes(x=illiterate, fill = Subscription)) + geom_bar(position = "fill", alpha = 0.9) + coord_flip()
-```
-Looking at our illiterate group, there is some slight seperation, but nothing super signficant.
-```{r 'Categorical Variable Review Grid', fig.width = 6,fig.height = 10}
-df.noNumeric.balanced.2 %>% 
-  mutate(job_education = paste(df.noNumeric.balanced.2$job, df.noNumeric.balanced.2$education, sep="_")) %>% 
-  ggplot(aes(x=fct_reorder(job_education, as.numeric(Subscription), fun = mean))) + geom_bar(position = "fill", alpha = 0.9) + coord_flip() + ggtitle("Profession and Education vs. Subscription")
-```
-Let's see if there is any interaction that might be present in the data.
-
-
-
-
-
-
-
