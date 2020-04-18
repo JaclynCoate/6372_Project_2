@@ -1,0 +1,122 @@
+---
+title: "LDA/QDA for Objective.2"
+author: "Jaclyn A Coate"
+date: "4/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(mvtnorm)
+library(skimr)
+library(ggthemes)
+library(caret)
+library(plotly)
+library(MLeval)
+```
+
+```{r important test and train sets}
+banktrain <- read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/Training_Test_Splits/banktrain_raw.csv", header = TRUE, sep = ",", strip.white = TRUE)
+
+banktest <- read.csv("https://raw.githubusercontent.com/JaclynCoate/6372_Project_2/master/Data/Training_Test_Splits/banktest_raw.csv", header = TRUE, sep = ",", strip.white = TRUE)
+```
+
+```{r review imported data}
+skim(banktrain)
+nrow(banktrain)
+
+skim(banktest)
+nrow(banktest)
+```
+
+#### Upon completion of our first EDA we will resume the EDA in order to accomplish an LDA model
+- A LDA does not deal with categorical varaibles as predictors. Therefore we will remove the categorical variables from our train data set
+  - Including removal of duration since it is considered a post variable and not a pre variable for prediction
+  - Will only include continuous variables found from initial EDA
+
+```{r categorical variable reduction}
+#Remove categorical predictors
+banktrain2 <- dplyr::select(banktrain, -c("age", "duration", "job", "marital", "education", "default", "housing", "loan", "contact", "month", "day_of_week", "poutcome"))
+banktrain3 <- dplyr::select(banktrain2, -c("pdays", "nr_employed", "emp_var_rate", "row", "previous", "campaign"))
+skim(banktrain3)
+invisible(view(banktrain3))
+```
+
+### Comparing Yes v No Count
+
+```{r subscription results check}
+banktrain3 %>% group_by(Subscription) %>% tally()
+```
+
+### Paris Scatter Plot
+- Pairs scatter plot to see if there is any separation
+  - We don't see a lot so we break up the data set for larger visualizations
+```{r pairs scatterplot to see separation}
+banktrain3 %>% pairs(,col=banktrain3$Subscription)
+```
+
+### LDA
+
+```{r lda}
+fitControl <- trainControl(
+  method = "cv",
+  number = 10,
+  savePredictions = T,
+  summaryFunction=twoClassSummary,
+  classProbs=T,
+)
+#LDA model build
+mylda <- train(Subscription~ cons_price_idx + cons_conf_idx + euribor3m, data=banktrain, method="lda", trControl=fitControl)
+#Predictions can come in many forms, the class form provides the categorical level of your response
+Pred <- predict(mylda,newdata = banktest)
+#Manual Creating confusion matrix
+Truth <- banktest$Subscription
+x <- table(Pred,Truth) 
+x
+```
+
+```{r lda Confusion matrix function}
+CMlda <- confusionMatrix(Pred,Truth)
+CMlda
+```
+
+```{r lda roc}
+evalm(list(mylda))
+```
+
+### QDA
+
+```{r qda}
+myqda <- train(Subscription~ cons_price_idx + cons_conf_idx + euribor3m,data=banktrain, method="qda", trControl=fitControl)
+#Predictions can come in many forms, the class form provides the categorical level of your response
+PredQ <- predict(myqda,newdata = banktest)
+#Creating confusion matrix
+TruthQ <- banktest$Subscription
+x <- table(PredQ,TruthQ)
+x
+```
+
+```{r qda Confusion matrix function}
+CMqda <- confusionMatrix(PredQ, TruthQ)
+CMqda
+```
+
+```{r qda roc}
+evalm(list(myqda))
+```
+
+### 3D Graph of Continuous Variables (predictors) colored by Subscription (dependent variable)
+
+```{r 3D graph}
+fig <- plot_ly(banktrain, x= ~cons_price_idx, y= ~cons_conf_idx, z= ~euribor3m, color = ~Subscription, colors = c('#BF382A', '#228B22'))
+fig2 <- fig %>% add_markers()
+fig3 <- fig2 %>% layout(scene = list(xaxis = list(title = 'Consumer Price Indx'),
+                     yaxis = list(title = 'Consumer Confidence Indx'),
+                     zaxis = list(title = '3 Month Rate')))
+fig3
+```
